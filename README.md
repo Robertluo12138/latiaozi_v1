@@ -75,12 +75,13 @@ The validator checks:
 1. All required files exist under `skill/`.
 2. Positive example outputs (the "拉条子改写" sections in `examples.md`) contain no bare `**FIELD：**` labels.
 3. No second-level title before the colon contains forbidden punctuation.
+4. **Warning (non-blocking):** No second-level title is overly generic — flagged if it is ≤ 5 Chinese characters with no judgment/trend/action word (`增长`, `提升`, `下滑`, `承压`, …) **or** ends in a placeholder suffix (`情况`, `数据`, `工作`, `现状`, `概况`).
 
 ```bash
 python3 scripts/validate_skill.py
 ```
 
-Exits 0 on success, 1 on failure. Standard library only — no dependencies.
+Exits 0 on success, 1 on failure. Warnings do not affect the exit code. Standard library only — no dependencies.
 
 ---
 
@@ -110,7 +111,7 @@ Most desktop agents that support Claude Skills accept either a folder or a zip w
 
 1. Open your desktop agent's **Skills** / **Plugins** / **Extensions** panel.
 2. Choose **Import skill** (or "Add skill" / "Load skill from zip").
-3. Select `dist/latiaozi_v1.zip`.
+3. After running the package script, select `dist/latiaozi_v1.zip`.
 4. Confirm. The agent reads `SKILL.md`'s YAML frontmatter and registers the skill under name `ali-latiao-writing`.
 
 If your agent imports from a folder rather than a zip, point it at the `skill/` directory directly.

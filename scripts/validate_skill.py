@@ -9,8 +9,16 @@ Checks:
   3. No second-level title (the bold short-judgment before the 冒号 in a
      positive example) contains forbidden punctuation:
      ASCII , . ;  /  Chinese ， 。 ； 、
+  4. Warn (non-blocking) on overly generic second-level titles. A title
+     is flagged if EITHER:
+       a. ≤ 5 Chinese characters AND missing any judgment / trend /
+          action word (增长, 提升, 下滑, 承压, ...); OR
+       b. Ends in a placeholder suffix that turns the title back into a
+          field-name label regardless of length (情况, 数据, 工作,
+          现状, 概况) — e.g. `用户增长情况：`, `本月数据：`.
 
-Exits 0 on success, 1 on failure. Python standard library only.
+Exits 0 on success, 1 on failure. Warnings do not affect the exit code.
+Python standard library only.
 
 Usage:
     python3 scripts/validate_skill.py
@@ -43,6 +51,20 @@ BARE_FIELD_NAMES = [
     "转化率", "DAU", "MAU", "新客", "留存",
     "UV", "PV", "ROI",
 ]
+
+# Judgment / trend / action vocabulary. A short title that contains any of
+# these reads as a conclusion rather than a bare field-name label.
+JUDGMENT_WORDS = [
+    "增长", "提升", "下滑", "承压", "改善", "稳定",
+    "偏弱", "偏高", "完成", "支撑", "沉淀", "拉动",
+    "放缓", "集中", "不足", "明显", "达成", "低于", "高于",
+]
+
+# Placeholder suffixes turn any title back into a field-name label even when
+# the title is long enough or contains a judgment word elsewhere. Documented
+# as bad shapes in style_rules.md / checklist.md (e.g. `用户增长情况：`,
+# `本月数据：`, `经营情况：`).
+PLACEHOLDER_SUFFIXES = ["情况", "数据", "工作", "现状", "概况"]
 
 # **<short_judgment>：**
 SHORT_JUDGMENT_RE = re.compile(r"\*\*([^*\n]+?)：\*\*")
@@ -93,6 +115,32 @@ def check_forbidden_punct(blocks: list[str]) -> list[tuple[int, str, list[str]]]
     return violations
 
 
+def count_chinese_chars(s: str) -> int:
+    """Count CJK Unified Ideographs in s (excludes ASCII / digits / punct)."""
+    return sum(1 for c in s if "一" <= c <= "鿿")
+
+
+def check_generic_titles(blocks: list[str]) -> list[tuple[int, str, str]]:
+    """Flag short judgments that read as bare field-name labels:
+
+      a. ≤ 5 Chinese chars AND no judgment / trend / action word; or
+      b. ends in a placeholder suffix (情况 / 数据 / 工作 / 现状 / 概况).
+
+    Returns (example_index, short_judgment, reason)."""
+    flagged: list[tuple[int, str, str]] = []
+    for i, block in enumerate(blocks, 1):
+        for m in SHORT_JUDGMENT_RE.finditer(block):
+            sj = m.group(1).rstrip()
+            cn = count_chinese_chars(sj)
+            if cn <= 5 and not any(w in sj for w in JUDGMENT_WORDS):
+                flagged.append((i, sj, f"{cn} 中文字, 缺判断词"))
+                continue
+            suffix_hit = next((s for s in PLACEHOLDER_SUFFIXES if sj.endswith(s)), None)
+            if suffix_hit:
+                flagged.append((i, sj, f"placeholder 后缀 {suffix_hit!r}"))
+    return flagged
+
+
 def main() -> int:
     print(f"Validating skill at: {SKILL_DIR}")
     print()
@@ -100,7 +148,7 @@ def main() -> int:
     failed = False
 
     # ---- Check 1: required files ----
-    print("[1/3] Required files exist")
+    print("[1/4] Required files exist")
     missing = check_files_exist()
     if missing:
         print(f"  FAIL: {len(missing)} missing file(s):")
@@ -120,7 +168,7 @@ def main() -> int:
     print(f"\nExtracted {len(blocks)} positive example block(s) from examples.md")
 
     # ---- Check 2: bare field-name labels ----
-    print("\n[2/3] No bare field-name labels in positive examples")
+    print("\n[2/4] No bare field-name labels in positive examples")
     bare = check_bare_labels(blocks)
     if bare:
         print(f"  FAIL: {len(bare)} bare label(s):")
@@ -131,7 +179,7 @@ def main() -> int:
         print("  OK: zero bare field-name labels")
 
     # ---- Check 3: forbidden punctuation in second-level titles ----
-    print("\n[3/3] No forbidden punctuation in 二级标题 (before 冒号)")
+    print("\n[3/4] No forbidden punctuation in 二级标题 (before 冒号)")
     bad_punct = check_forbidden_punct(blocks)
     total_titles = sum(len(SHORT_JUDGMENT_RE.findall(b)) for b in blocks)
     if bad_punct:
@@ -141,6 +189,17 @@ def main() -> int:
         failed = True
     else:
         print(f"  OK: {total_titles} short judgments scanned, all clean")
+
+    # ---- Check 4: overly generic short judgments (warning only) ----
+    print("\n[4/4] No overly generic 二级标题 (短小缺判断 或 情况/数据 等占位后缀)")
+    generic = check_generic_titles(blocks)
+    if generic:
+        print(f"  WARN: {len(generic)} potentially generic title(s) "
+              f"(non-blocking — review before shipping):")
+        for ex_idx, sj, reason in generic:
+            print(f"    example {ex_idx}: {sj!r}  ({reason})")
+    else:
+        print("  OK: no overly generic short judgments detected")
 
     print()
     if failed:

@@ -35,12 +35,12 @@ EXPECTED_TOP_LEVELS = {"SKILL.md", "references", "evals"}
 
 
 def run_validator() -> None:
-    print("Running validator first...")
-    print("-" * 60)
+    print("Running validator first...", flush=True)
+    print("-" * 60, flush=True)
     result = subprocess.run([sys.executable, str(VALIDATOR)], cwd=str(ROOT))
-    print("-" * 60)
+    print("-" * 60, flush=True)
     if result.returncode != 0:
-        print("Validator failed; refusing to package.")
+        print("Validator failed; refusing to package.", flush=True)
         sys.exit(1)
 
 
