@@ -53,6 +53,16 @@ Checks:
      without supporting data — i.e. "looks measured but actually
      amplifies". See SKILL.md "业务措辞克制" + style_rules.md §6.2
      and §11.4 for the rule text.
+  8. No "unnatural AI template" phrases in positive example output
+     blocks. The skill must use natural business Chinese, not AI
+     template-speak. Forbidden: 使用门槛下行 / 能力获得 /
+     数据不可达瓶颈 / 多项能力初步成型 / 消除瓶颈 / 用户不再受
+     操作系统差异困扰 / 多端能力获得 / 流程闭环已达成. These read
+     as stilted machine-generated wording and are explicitly banned
+     in SKILL.md "月报提交模式 > 自然语言度" + style_rules.md
+     §12.7. Natural alternatives live in §12.8 (e.g. `降低使用门槛`
+     / `形成能力雏形` / `缓解 X 阻力` / `跨端使用条件得到补齐` /
+     `双端可装` / `链路初步跑通`).
 
 Exits 0 on success, 1 on failure. Python standard library only.
 
@@ -192,6 +202,39 @@ FORBIDDEN_AMP_WORDS = [
     "显著",
     "极大",
     "巨大",
+]
+
+# Unnatural AI template phrases — stilted machine-generated wording that
+# leaks "this was written by an LLM" tone. Forbidden in positive example
+# output blocks. Listed in SKILL.md "月报提交模式 > 自然语言度" and
+# style_rules.md §12.7. Natural replacements live in §12.8.
+#
+# Detection rationale (one line each):
+#   - 使用门槛下行: should be `降低使用门槛 / 使用门槛降低` (the verb
+#     `下行` is for trends like 留存下行, not for thresholds).
+#   - 能力获得: should be `形成能力 / 沉淀能力 / 具备 X 能力`.
+#   - 数据不可达瓶颈: should be `数据无法对齐 / 业务无法直接取数`
+#     with the concrete scenario preserved.
+#   - 多项能力初步成型: should be `多个方向均形成阶段性进展` /
+#     `各方向按节奏推进`.
+#   - 消除瓶颈: an absolute/AI-template claim. Should be `缓解 X 阻力` /
+#     `减少 X 协同成本` / `降低 X 门槛`.
+#   - 用户不再受操作系统差异困扰: AI-template phrasing that reads as
+#     translated marketing copy. Should be `跨端使用条件得到补齐` /
+#     `双端可用`.
+#   - 多端能力获得: same `能力获得` template trap on the multi-platform
+#     case. Should be `双端可用 / 双端可装`.
+#   - 流程闭环已达成: stilted absolute claim. Should be
+#     `链路初步跑通 / 基本跑通`.
+FORBIDDEN_UNNATURAL_PHRASES = [
+    "使用门槛下行",
+    "能力获得",
+    "数据不可达瓶颈",
+    "多项能力初步成型",
+    "消除瓶颈",
+    "用户不再受操作系统差异困扰",
+    "多端能力获得",
+    "流程闭环已达成",
 ]
 
 # **<short_judgment>：**
@@ -336,6 +379,18 @@ def check_amplification_words(blocks: list[str]) -> list[tuple[int, str]]:
     return violations
 
 
+def check_unnatural_phrases(blocks: list[str]) -> list[tuple[int, str]]:
+    """Flag any positive example block that contains unnatural AI phrases.
+
+    Returns (example_index, phrase)."""
+    violations: list[tuple[int, str]] = []
+    for i, block in enumerate(blocks, 1):
+        for w in FORBIDDEN_UNNATURAL_PHRASES:
+            if w in block:
+                violations.append((i, w))
+    return violations
+
+
 def main() -> int:
     print(f"Validating skill at: {SKILL_DIR}")
     print()
@@ -343,7 +398,7 @@ def main() -> int:
     failed = False
 
     # ---- Check 1: required files ----
-    print("[1/7] Required files exist")
+    print("[1/8] Required files exist")
     missing = check_files_exist()
     if missing:
         print(f"  FAIL: {len(missing)} missing file(s):")
@@ -363,7 +418,7 @@ def main() -> int:
     print(f"\nExtracted {len(blocks)} positive example block(s) from examples.md")
 
     # ---- Check 2: bare field-name labels ----
-    print("\n[2/7] No bare field-name labels in positive examples")
+    print("\n[2/8] No bare field-name labels in positive examples")
     bare = check_bare_labels(blocks)
     if bare:
         print(f"  FAIL: {len(bare)} bare label(s):")
@@ -374,7 +429,7 @@ def main() -> int:
         print("  OK: zero bare field-name labels")
 
     # ---- Check 3: forbidden punctuation in second-level titles ----
-    print("\n[3/7] No forbidden punctuation in 二级标题 (before 冒号)")
+    print("\n[3/8] No forbidden punctuation in 二级标题 (before 冒号)")
     bad_punct = check_forbidden_punct(blocks)
     total_titles = sum(len(SHORT_JUDGMENT_RE.findall(b)) for b in blocks)
     if bad_punct:
@@ -386,7 +441,7 @@ def main() -> int:
         print(f"  OK: {total_titles} short judgments scanned, all clean")
 
     # ---- Check 4: overly generic short judgments (FAIL) ----
-    print("\n[4/7] No overly generic 二级标题 "
+    print("\n[4/8] No overly generic 二级标题 "
           "(工具名/平台名独立成标 或 情况/数据 等占位后缀)")
     generic = check_generic_titles(blocks)
     if generic:
@@ -399,7 +454,7 @@ def main() -> int:
         print("  OK: no overly generic short judgments detected")
 
     # ---- Check 5: forbidden process-narration phrases ----
-    print("\n[5/7] No process-narration phrases in positive examples")
+    print("\n[5/8] No process-narration phrases in positive examples")
     proc_violations = check_process_phrases(blocks)
     if proc_violations:
         print(f"  FAIL: {len(proc_violations)} process phrase leak(s):")
@@ -410,7 +465,7 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_PROCESS_PHRASES)} forbidden phrases scanned, zero hits")
 
     # ---- Check 6: placeholder count cap ----
-    print(f"\n[6/7] No more than {MAX_PLACEHOLDER_PER_BLOCK} occurrences of "
+    print(f"\n[6/8] No more than {MAX_PLACEHOLDER_PER_BLOCK} occurrences of "
           f"{PLACEHOLDER_TOKEN!r} per example output block")
     pl_violations = check_placeholder_count(blocks)
     if pl_violations:
@@ -423,7 +478,7 @@ def main() -> int:
         print(f"  OK: per-block counts {per_block}, all within cap")
 
     # ---- Check 7: 放大型 wording ----
-    print("\n[7/7] No 放大型 wording in positive examples "
+    print("\n[7/8] No 放大型 wording in positive examples "
           "(零门槛 / 大幅 / 明显提升 / 完全打通 / 全自动 / 闭环完成 / 显著 / 极大 / 巨大)")
     amp_violations = check_amplification_words(blocks)
     if amp_violations:
@@ -433,6 +488,19 @@ def main() -> int:
         failed = True
     else:
         print(f"  OK: {len(FORBIDDEN_AMP_WORDS)} forbidden amp words scanned, zero hits")
+
+    # ---- Check 8: unnatural AI template phrases ----
+    print("\n[8/8] No unnatural AI template phrases in positive examples "
+          "(使用门槛下行 / 能力获得 / 数据不可达瓶颈 / 多项能力初步成型 / "
+          "消除瓶颈 / 用户不再受操作系统差异困扰 / 多端能力获得 / 流程闭环已达成)")
+    unnatural_violations = check_unnatural_phrases(blocks)
+    if unnatural_violations:
+        print(f"  FAIL: {len(unnatural_violations)} unnatural phrase leak(s):")
+        for ex_idx, w in unnatural_violations:
+            print(f"    example {ex_idx}: {w!r}")
+        failed = True
+    else:
+        print(f"  OK: {len(FORBIDDEN_UNNATURAL_PHRASES)} forbidden unnatural phrases scanned, zero hits")
 
     print()
     if failed:
