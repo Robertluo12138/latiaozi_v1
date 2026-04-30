@@ -47,7 +47,12 @@ Checks:
      blocks. The skill must use measured business language; the
      following words leak absolute / over-claim tone and are forbidden
      unless the user's own input contained them: 零门槛 / 大幅 /
-     完全打通 / 全自动 / 闭环完成 / 显著 / 极大 / 巨大.
+     明显提升 / 完全打通 / 全自动 / 闭环完成 / 显著 / 极大 / 巨大.
+     `明显提升` was added alongside `大幅提升` because it implies a
+     specific magnitude of improvement but is almost always written
+     without supporting data — i.e. "looks measured but actually
+     amplifies". See SKILL.md "业务措辞克制" + style_rules.md §6.2
+     and §11.4 for the rule text.
 
 Exits 0 on success, 1 on failure. Python standard library only.
 
@@ -170,9 +175,17 @@ PLACEHOLDER_TOKEN = "待补充："
 # Forbidden in positive example output blocks unless the user's input
 # explicitly used them. Listed in SKILL.md > 业务措辞克制 and recommended
 # replacements live in references/style_rules.md.
+#
+# `明显提升` is grouped here alongside `大幅提升` (already covered by the
+# `大幅` substring): both imply a specific magnitude of improvement but are
+# almost always written without supporting data — "looks measured, actually
+# amplifies". `明显` alone is NOT forbidden because it is a legitimate
+# directional modifier ("明显抬升" / "明显下行" with an accompanying number
+# is fine); only the `明显提升` phrase is banned.
 FORBIDDEN_AMP_WORDS = [
     "零门槛",
     "大幅",
+    "明显提升",
     "完全打通",
     "全自动",
     "闭环完成",
@@ -411,7 +424,7 @@ def main() -> int:
 
     # ---- Check 7: 放大型 wording ----
     print("\n[7/7] No 放大型 wording in positive examples "
-          "(零门槛 / 大幅 / 完全打通 / 全自动 / 闭环完成 / 显著 / 极大 / 巨大)")
+          "(零门槛 / 大幅 / 明显提升 / 完全打通 / 全自动 / 闭环完成 / 显著 / 极大 / 巨大)")
     amp_violations = check_amplification_words(blocks)
     if amp_violations:
         print(f"  FAIL: {len(amp_violations)} amp word leak(s):")
