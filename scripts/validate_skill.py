@@ -66,10 +66,11 @@ Checks:
   9. No unsupported-inference phrases in positive example output
      blocks. These add UI behavior / adoption status / dependency
      removal / automation level / future expansion / business effect
-     / user-feeling / data-bottleneck / system-capability claims the
-     user did not state. The list mirrors the 8-category inference
-     table in SKILL.md's "禁止过度推断" / style_rules.md §12.11.
-     Curated phrases include:
+     / user-feeling / data-bottleneck / system-capability /
+     operations-virtual-claim wording the user did not state. The
+     list mirrors the 8-category "禁止过度推断" inference table in
+     SKILL.md / style_rules.md §12.11 + the 6-category "运营月报
+     子模式 > 不得虚构" table in §13.8. Curated phrases include:
        - UI:       自行拖拽查询 / 一键导出 / 点击即用
        - 采纳依赖: 不再依赖人工中转 / 已全员采纳 / 数据团队不再承接
        - 自动化:   完整自动化闭环 / 全流程自动化 / 自动化覆盖所有场景
@@ -81,11 +82,40 @@ Checks:
        - 数据瓶颈: 消除数据瓶颈
        - 系统能力: Windows 用户可在本地直接执行 ODPS 查询 /
                    Agent 可承接所有取数场景
+       - 运营场景虚构: 商户满意度 / 反响热烈 (substring; catches
+                       `商户反响热烈` / `商户对活动反响热烈` /
+                       `活动反响热烈` / `本次活动反响热烈` /
+                       `市场反响热烈`) / 高度认可 (substring;
+                       catches `商户高度认可` / `商户对策略高度
+                       认可` / `商户高度认可策略` / `老板高度
+                       认可`) / 商户给予正面评价 / 商户主动配合 /
+                       商户已全员报名 / 活动效果超预期 /
+                       活动 ROI 创新高 / 参与率显著提升 /
+                       转化率明显改善 / 推动品类整体增长 /
+                       经营改善显著 / 团队协同效率明显改善 /
+                       跨团队配合质量大幅提升 / 商户关系全面改善
      Notes: `消除数据瓶颈` is distinct from `消除瓶颈` (unnatural
      list); `用户不再受系统差异困扰` is distinct from the longer
      `用户不再受操作系统差异困扰` (unnatural list) — both must
-     fail. The skill must use restrained traceable wording that
-     maps back to specific input sentences.
+     fail. The 运营场景虚构 phrases are explicitly listed in
+     test_cases.md 用例 16 PASS (i)/(j) and 用例 17 PASS (f) grep
+     patterns; the validator now enforces parity. The skill must
+     use restrained traceable wording that maps back to specific
+     input sentences.
+ 10. No technical-substrate phrases in operations-mode examples.
+     The full 12-phrase list mirrors style_rules.md §13.6:
+       - core 6: 数据底座 / 技术基建 / 系统能力 / 链路打通 /
+                 模型能力 / 自动化闭环
+       - doc additions: 数据连接 / 数据采集 / 接口对接 /
+                        监控告警 / 调度任务 / 流程闭环
+     Operations-mode examples are detected by section title —
+     keywords like 商户拜访 / 活动运营 / 客诉 / 走访 / 运营月报
+     trigger ops-mode classification. Technical examples (data /
+     SQL / dashboard / Agent / Skill / model) are exempt. This
+     catches the common failure mode where the skill applies data-
+     infrastructure tone to merchant / activity / customer-complaint
+     monthly reports. See SKILL.md "运营月报子模式 > 技术化措辞
+     禁忌" + style_rules.md §13.6.
 
 Exits 0 on success, 1 on failure. Python standard library only.
 
@@ -153,6 +183,12 @@ JUDGMENT_WORDS = [
     # monthly-report verbs, not amp words.
     "优化", "建设", "前置", "拆分", "补充", "设计", "观察",
     "整理", "新增",
+    # Action / outcome — operations submission style (§13). Common
+    # verbs in merchant / activity / customer-complaint monthly
+    # reports: 识别 (identify), 对齐 (align), 梳理 (sort/organize).
+    # Let titles like `素材准备节奏对齐` / `报名意愿低商户已识别` /
+    # `三类问题完成梳理` / `后续风险提前识别` pass check 4(a).
+    "识别", "对齐", "梳理",
     # Comparison
     "低于", "高于", "等于", "接近", "逼近",
     # Modifier / state qualifier (when used as judgment)
@@ -320,6 +356,98 @@ FORBIDDEN_INFERENCE_PHRASES = [
     # capability the user did not state.
     "Windows 用户可在本地直接执行 ODPS 查询",
     "Agent 可承接所有取数场景",
+    # Operations-mode virtual claims — phrases the docs explicitly ban
+    # in SKILL.md "运营月报子模式 > 不得虚构" + style_rules.md §13.8 +
+    # test_cases.md 用例 16 PASS (i)/(j) and 用例 17 PASS (f) grep
+    # patterns. The user's iteration explicitly bans inventing
+    # merchant feedback / activity results / business changes /
+    # cross-team effects. These are documented as ❌ across multiple
+    # files; the validator must catch them too.
+    # 商户反馈情绪 / 商户采纳
+    "商户满意度",
+    # `反响热烈` substring covers all word orders for the documented
+    # AI-template merchant-feedback claim:
+    #   - 商户反响热烈 (short form)
+    #   - 商户对活动反响热烈 (SKILL.md / style_rules.md §13.8 — has
+    #     `对活动` infix that breaks substring matching on the short
+    #     form)
+    #   - 活动反响热烈 / 本月活动反响热烈 / 市场反响热烈 (bare-activity
+    #     and other variants the docs imply by example)
+    # One substring, full family coverage. See style_rules.md §13.8
+    # 商户反馈情绪 row.
+    "反响热烈",
+    "商户给予正面评价",
+    # `高度认可` substring covers all word orders the docs list:
+    #   - 商户高度认可 (short form)
+    #   - 商户高度认可策略 (style_rules.md §13.8 — suffix variant)
+    #   - 商户对策略高度认可 (SKILL.md 商户采纳 row — different word
+    #     order with `对策略` infix between `商户` and `高度认可`)
+    #   - 商户对活动高度认可 / 老板高度认可 (other variants the
+    #     docs imply)
+    # One substring, full family coverage.
+    "高度认可",
+    "商户主动配合",
+    "商户已全员报名",
+    # 活动效果 / 转化结果
+    "活动效果超预期",
+    "活动 ROI 创新高",
+    "参与率显著提升",
+    "转化率明显改善",     # SKILL.md 活动结果 + style_rules.md §13.8
+                          # GMV/转化 row — uses `明显改善` not
+                          # `明显提升` so amp-word check (Check 7)
+                          # doesn't catch it.
+    # 业务影响 / 跨团队效果
+    "推动品类整体增长",
+    "经营改善显著",
+    "团队协同效率明显改善",
+    "跨团队配合质量大幅提升",
+    "商户关系全面改善",
+]
+
+# Operations-mode example detection: if the example's `## 示例 N: …`
+# title contains any of these keywords, treat it as an operations-mode
+# example (运营子模式) and apply check 10 (tech-substrate leakage).
+# Technical examples (data / SQL / dashboard / Agent / Skill / model)
+# are exempt from this check — they may legitimately use technical
+# substrate words.
+OPERATIONS_TITLE_KEYWORDS = [
+    "商户拜访",
+    "商家沟通",
+    "活动运营",
+    "客诉",
+    "门店",
+    "招商",
+    "走访",
+    "拜访",
+    "运营月报",
+    "运营子模式",
+]
+
+# Technical-substrate phrases that should NOT appear in operations-mode
+# positive examples. These belong to data / system / model context;
+# applying them to merchant / activity / customer-complaint monthly
+# reports forces a wrong tone (see SKILL.md "运营月报子模式 > 技术化
+# 措辞禁忌" + style_rules.md §13.6). Technical examples are exempt —
+# scoping is by the example section title.
+#
+# This mirrors the full 12-row tech-leakage table in style_rules.md
+# §13.6, not just the 6-phrase section-G subset. The natural ops
+# replacements are documented next to each ❌ phrase in the same table.
+FORBIDDEN_TECH_LEAKAGE = [
+    # Core 6 (user's section-G list)
+    "数据底座",
+    "技术基建",
+    "系统能力",
+    "链路打通",
+    "模型能力",
+    "自动化闭环",
+    # Doc additions in SKILL.md "技术化措辞禁忌" + style_rules.md §13.6
+    "数据连接",   # use `信息对齐` / `跨团队对接`
+    "数据采集",   # use `一线反馈收集` / `走访沉淀`
+    "接口对接",   # use `跨团队对齐` / `沟通对齐`
+    "监控告警",   # use `风险识别` / `重点跟进`
+    "调度任务",   # use `推进节奏` / `跟进节点`
+    "流程闭环",   # use `处理到位` / `持续推进` / `阶段性完成`
 ]
 
 # **<short_judgment>：**
@@ -348,6 +476,28 @@ def extract_positive_blocks(examples_path: pathlib.Path) -> list[str]:
         if m:
             blocks.append(m.group(1))
     return blocks
+
+
+def extract_example_titles(examples_path: pathlib.Path) -> list[str]:
+    """Return the section title (first line after `## 示例`) for each
+    example block, in the same order as `extract_positive_blocks`.
+
+    Used by check 10 to detect operations-mode examples by keyword
+    matching on titles (see `OPERATIONS_TITLE_KEYWORDS`)."""
+    text = examples_path.read_text(encoding="utf-8")
+    titles: list[str] = []
+    sections = text.split("## 示例")
+    for sec in sections[1:]:
+        # Only count sections that actually contain a 拉条子改写 block,
+        # to keep alignment with extract_positive_blocks.
+        if not re.search(r"### 拉条子改写\s*\n", sec):
+            continue
+        title_match = re.match(r"\s*([^\n]+)", sec)
+        if title_match:
+            titles.append(title_match.group(1).strip())
+        else:
+            titles.append("")
+    return titles
 
 
 def check_bare_labels(blocks: list[str]) -> list[tuple[int, str]]:
@@ -504,6 +654,30 @@ def check_inference_phrases(blocks: list[str]) -> list[tuple[int, str]]:
     return violations
 
 
+def _is_operations_example(title: str) -> bool:
+    """Return True if the example section title indicates operations-mode."""
+    return any(kw in title for kw in OPERATIONS_TITLE_KEYWORDS)
+
+
+def check_ops_tech_leakage(
+    blocks: list[str], titles: list[str]
+) -> list[tuple[int, str, str]]:
+    """For operations-mode examples (detected by title keyword), flag
+    technical-substrate phrases that should not appear (the input is
+    business / merchant / activity / customer-complaint, not data /
+    system / model context).
+
+    Returns (example_index, phrase, title)."""
+    violations: list[tuple[int, str, str]] = []
+    for i, (block, title) in enumerate(zip(blocks, titles), 1):
+        if not _is_operations_example(title):
+            continue
+        for phrase in FORBIDDEN_TECH_LEAKAGE:
+            if phrase in block:
+                violations.append((i, phrase, title))
+    return violations
+
+
 def main() -> int:
     print(f"Validating skill at: {SKILL_DIR}")
     print()
@@ -511,7 +685,7 @@ def main() -> int:
     failed = False
 
     # ---- Check 1: required files ----
-    print("[1/9] Required files exist")
+    print("[1/10] Required files exist")
     missing = check_files_exist()
     if missing:
         print(f"  FAIL: {len(missing)} missing file(s):")
@@ -531,7 +705,7 @@ def main() -> int:
     print(f"\nExtracted {len(blocks)} positive example block(s) from examples.md")
 
     # ---- Check 2: bare field-name labels ----
-    print("\n[2/9] No bare field-name labels in positive examples")
+    print("\n[2/10] No bare field-name labels in positive examples")
     bare = check_bare_labels(blocks)
     if bare:
         print(f"  FAIL: {len(bare)} bare label(s):")
@@ -542,7 +716,7 @@ def main() -> int:
         print("  OK: zero bare field-name labels")
 
     # ---- Check 3: forbidden punctuation in second-level titles ----
-    print("\n[3/9] No forbidden punctuation in 二级标题 (before 冒号)")
+    print("\n[3/10] No forbidden punctuation in 二级标题 (before 冒号)")
     bad_punct = check_forbidden_punct(blocks)
     total_titles = sum(len(SHORT_JUDGMENT_RE.findall(b)) for b in blocks)
     if bad_punct:
@@ -554,7 +728,7 @@ def main() -> int:
         print(f"  OK: {total_titles} short judgments scanned, all clean")
 
     # ---- Check 4: overly generic short judgments (FAIL) ----
-    print("\n[4/9] No overly generic 二级标题 "
+    print("\n[4/10] No overly generic 二级标题 "
           "(工具名/平台名独立成标 或 情况/数据 等占位后缀)")
     generic = check_generic_titles(blocks)
     if generic:
@@ -567,7 +741,7 @@ def main() -> int:
         print("  OK: no overly generic short judgments detected")
 
     # ---- Check 5: forbidden process-narration phrases ----
-    print("\n[5/9] No process-narration phrases in positive examples")
+    print("\n[5/10] No process-narration phrases in positive examples")
     proc_violations = check_process_phrases(blocks)
     if proc_violations:
         print(f"  FAIL: {len(proc_violations)} process phrase leak(s):")
@@ -578,7 +752,7 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_PROCESS_PHRASES)} forbidden phrases scanned, zero hits")
 
     # ---- Check 6: placeholder count cap ----
-    print(f"\n[6/9] No more than {MAX_PLACEHOLDER_PER_BLOCK} occurrences of "
+    print(f"\n[6/10] No more than {MAX_PLACEHOLDER_PER_BLOCK} occurrences of "
           f"{PLACEHOLDER_TOKEN!r} per example output block")
     pl_violations = check_placeholder_count(blocks)
     if pl_violations:
@@ -591,7 +765,7 @@ def main() -> int:
         print(f"  OK: per-block counts {per_block}, all within cap")
 
     # ---- Check 7: 放大型 wording ----
-    print("\n[7/9] No 放大型 wording in positive examples "
+    print("\n[7/10] No 放大型 wording in positive examples "
           "(零门槛 / 大幅 / 明显提升 / 完全打通 / 全自动 / 闭环完成 / 显著 / 极大 / 巨大)")
     amp_violations = check_amplification_words(blocks)
     if amp_violations:
@@ -603,7 +777,7 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_AMP_WORDS)} forbidden amp words scanned, zero hits")
 
     # ---- Check 8: unnatural AI template phrases ----
-    print("\n[8/9] No unnatural AI template phrases in positive examples "
+    print("\n[8/10] No unnatural AI template phrases in positive examples "
           "(使用门槛下行 / 能力获得 / 数据不可达瓶颈 / 多项能力初步成型 / "
           "消除瓶颈 / 用户不再受操作系统差异困扰 / 多端能力获得 / 流程闭环已达成)")
     unnatural_violations = check_unnatural_phrases(blocks)
@@ -616,9 +790,9 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_UNNATURAL_PHRASES)} forbidden unnatural phrases scanned, zero hits")
 
     # ---- Check 9: unsupported-inference phrases ----
-    print("\n[9/9] No unsupported-inference phrases in positive examples "
-          "(8 categories: UI / 采纳依赖 / 自动化 / 未来扩展 / 业务效果 / "
-          "用户感受 / 数据瓶颈 / 系统能力)")
+    print("\n[9/10] No unsupported-inference phrases in positive examples "
+          "(9 categories: UI / 采纳依赖 / 自动化 / 未来扩展 / 业务效果 / "
+          "用户感受 / 数据瓶颈 / 系统能力 / 运营场景虚构)")
     inf_violations = check_inference_phrases(blocks)
     if inf_violations:
         print(f"  FAIL: {len(inf_violations)} inference phrase leak(s):")
@@ -627,6 +801,25 @@ def main() -> int:
         failed = True
     else:
         print(f"  OK: {len(FORBIDDEN_INFERENCE_PHRASES)} forbidden inference phrases scanned, zero hits")
+
+    # ---- Check 10: tech-substrate leakage in operations-mode examples ----
+    titles = extract_example_titles(examples_path)
+    ops_block_indices = [
+        i for i, t in enumerate(titles, 1) if _is_operations_example(t)
+    ]
+    print(f"\n[10/10] No tech-substrate leakage in operations-mode examples "
+          f"(数据底座 / 技术基建 / 系统能力 / 链路打通 / 模型能力 / 自动化闭环 / "
+          f"数据连接 / 数据采集 / 接口对接 / 监控告警 / 调度任务 / 流程闭环)")
+    print(f"        Operations-mode example indices detected: {ops_block_indices}")
+    leak_violations = check_ops_tech_leakage(blocks, titles)
+    if leak_violations:
+        print(f"  FAIL: {len(leak_violations)} tech-leakage hit(s) in ops examples:")
+        for ex_idx, phrase, title in leak_violations:
+            print(f"    example {ex_idx} ({title[:40]}...): {phrase!r}")
+        failed = True
+    else:
+        print(f"  OK: {len(FORBIDDEN_TECH_LEAKAGE)} tech-substrate phrases scanned across "
+              f"{len(ops_block_indices)} ops example(s), zero hits")
 
     print()
     if failed:
