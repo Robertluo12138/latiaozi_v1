@@ -63,6 +63,29 @@ Checks:
      §12.7. Natural alternatives live in §12.8 (e.g. `降低使用门槛`
      / `形成能力雏形` / `缓解 X 阻力` / `跨端使用条件得到补齐` /
      `双端可装` / `链路初步跑通`).
+  9. No unsupported-inference phrases in positive example output
+     blocks. These add UI behavior / adoption status / dependency
+     removal / automation level / future expansion / business effect
+     / user-feeling / data-bottleneck / system-capability claims the
+     user did not state. The list mirrors the 8-category inference
+     table in SKILL.md's "禁止过度推断" / style_rules.md §12.11.
+     Curated phrases include:
+       - UI:       自行拖拽查询 / 一键导出 / 点击即用
+       - 采纳依赖: 不再依赖人工中转 / 已全员采纳 / 数据团队不再承接
+       - 自动化:   完整自动化闭环 / 全流程自动化 / 自动化覆盖所有场景
+       - 未来扩展: 后续可扩展至 (substring; catches `更多数据域` /
+                   `货品维度` / `流量等维度` / `全公司`) /
+                   下季度可推广
+       - 业务效果: 业务效率提升 / 决策速度加快 / 提升老板满意度
+       - 用户感受: 用户不再受系统差异困扰 / 用户体验明显改善
+       - 数据瓶颈: 消除数据瓶颈
+       - 系统能力: Windows 用户可在本地直接执行 ODPS 查询 /
+                   Agent 可承接所有取数场景
+     Notes: `消除数据瓶颈` is distinct from `消除瓶颈` (unnatural
+     list); `用户不再受系统差异困扰` is distinct from the longer
+     `用户不再受操作系统差异困扰` (unnatural list) — both must
+     fail. The skill must use restrained traceable wording that
+     maps back to specific input sentences.
 
 Exits 0 on success, 1 on failure. Python standard library only.
 
@@ -121,6 +144,15 @@ JUDGMENT_WORDS = [
     "聚焦", "回归", "形成", "持续", "完成", "达成", "达标",
     "支撑", "拉动", "拖累", "驱动", "覆盖", "纳入",
     "先行", "细分", "成为",
+    # Action / outcome — added for monthly-report submission style
+    # (see SKILL.md "二级子论点 > 短判断形态" + style_rules.md §12.14).
+    # These let short human-style titles like `安装体验优化` /
+    # `数据桥梁建设` / `使用路径前置` / `曝光效率拆分` /
+    # `连带分析补充` / `报告主题设计` / `准确性待观察` /
+    # `安装文档整理` / `多维度新增` pass check 4(a). They are normal
+    # monthly-report verbs, not amp words.
+    "优化", "建设", "前置", "拆分", "补充", "设计", "观察",
+    "整理", "新增",
     # Comparison
     "低于", "高于", "等于", "接近", "逼近",
     # Modifier / state qualifier (when used as judgment)
@@ -237,6 +269,59 @@ FORBIDDEN_UNNATURAL_PHRASES = [
     "流程闭环已达成",
 ]
 
+# Unsupported-inference phrases — wording that adds UI behavior /
+# adoption status / dependency-removal / automation-level / future
+# expansion / business effect / user-feeling / system-capability
+# claims that the user did not say. These read plausible in monthly-
+# report tone but are *not* in the source. The skill must instead
+# use restrained traceable wording that maps back to specific input
+# sentences (see SKILL.md "禁止过度推断" / style_rules.md §12.11).
+#
+# This list mirrors the 7 categories in SKILL.md's inference table
+# (UI / 采纳依赖 / 自动化 / 未来扩展 / 业务效果 / 用户感受 / 系统
+# 能力). It is curated — explicit AI-template phrases that real
+# outputs leak — not an exhaustive enumeration of every possible
+# inference.
+FORBIDDEN_INFERENCE_PHRASES = [
+    # UI / 操作行为
+    "自行拖拽查询",      # overshoots "拖字段看简单数据"
+    "一键导出",          # AI-template UI claim
+    "点击即用",          # AI-template UI claim
+    # 采纳 / 依赖状态
+    "不再依赖人工中转",   # dependency-removal claim
+    "已全员采纳",         # adoption claim
+    "数据团队不再承接",   # substring catches "...此类需求" suffix
+    # 自动化程度
+    "完整自动化闭环",     # absolute automation
+    "全流程自动化",       # absolute automation
+    "自动化覆盖所有场景", # absolute scope
+    # 未来扩展方向 — substrings to catch the doc's whole family of
+    # variants: `后续可扩展至更多数据域` / `后续可扩展至货品维度` /
+    # `后续可扩展至流量等维度` / `后续可扩展至全公司` etc.
+    "后续可扩展至",       # substring; covers `更多数据域` / `货品` /
+                          # `流量等维度` / `全公司` and any new variants
+    "下季度可推广",       # substring catches "...至全公司" / "...至全部"
+    # 业务效果
+    "业务效率提升",       # AI-template effect claim (no data)
+    "决策速度加快",       # AI-template effect claim
+    "提升老板满意度",     # AI-template stakeholder claim
+    # 数据 / 瓶颈类
+    "消除数据瓶颈",       # `消除[X]瓶颈` family — distinct from
+                          # `消除瓶颈` (unnatural list). Use
+                          # `缓解 X 数据无法对齐的具体场景`.
+    # 用户感受
+    "用户不再受系统差异困扰",  # shorter form of the longer
+                                # "...操作系统差异困扰" in the
+                                # unnatural list — both must fail
+    "用户体验明显改善",   # AI-template user-feeling claim
+    # 系统能力 — completes the 7-category "禁止过度推断" table in
+    # SKILL.md / style_rules.md §12.11. Both are listed verbatim in
+    # the doc as ❌ forbidden examples; both claim a system-wide
+    # capability the user did not state.
+    "Windows 用户可在本地直接执行 ODPS 查询",
+    "Agent 可承接所有取数场景",
+]
+
 # **<short_judgment>：**
 SHORT_JUDGMENT_RE = re.compile(r"\*\*([^*\n]+?)：\*\*")
 
@@ -292,17 +377,31 @@ def count_chinese_chars(s: str) -> int:
 
 
 def _matches_tool_verb_tail(sj: str) -> tuple[str, str] | None:
-    """If `sj` ends with `[Container][TailVerb]`, return (container, verb).
+    """If `sj` is **literally** `[Container][TailVerb]` (the entire short
+    judgment, with no specifying prefix at all), return (container, verb).
 
-    The container must be the immediate left-neighbor of the verb — i.e.
-    the prefix before the verb must end exactly with the container, with
-    no specifying noun in between. Returns None on no match."""
+    The original strict rule flagged any `prefix.endswith(cont)` form —
+    that was too aggressive: it rejected legitimate human-style monthly
+    report titles like `安装链路打通` (where `安装` specifies `链路`
+    before the verb).
+
+    The relaxed rule only flags the truly bare `[Container][Verb]`
+    shape (e.g. `看板迭代` / `工具链打通` / `工作台落地`). Any
+    specifier prefix before the container makes the title rich enough.
+
+    Examples:
+      - `看板迭代`         → flagged ([看板][迭代])
+      - `工具链打通`       → flagged ([工具链][打通])
+      - `经营看板迭代`     → NOT flagged (has 经营 specifier)
+      - `安装链路打通`     → NOT flagged (has 安装 specifier)
+      - `核心经营看板维度持续补齐` → NOT flagged (补齐 not in tail verbs)
+    """
     for verb in TOOL_NAME_TAIL_VERBS:
         if not sj.endswith(verb):
             continue
         prefix = sj[: -len(verb)]
         for cont in TOOL_NAME_CONTAINERS:
-            if prefix.endswith(cont):
+            if prefix == cont:
                 return cont, verb
     return None
 
@@ -391,6 +490,20 @@ def check_unnatural_phrases(blocks: list[str]) -> list[tuple[int, str]]:
     return violations
 
 
+def check_inference_phrases(blocks: list[str]) -> list[tuple[int, str]]:
+    """Flag any positive example block that contains unsupported-inference
+    phrases (UI behavior / adoption status / future expansion / automation
+    level the user did not state).
+
+    Returns (example_index, phrase)."""
+    violations: list[tuple[int, str]] = []
+    for i, block in enumerate(blocks, 1):
+        for w in FORBIDDEN_INFERENCE_PHRASES:
+            if w in block:
+                violations.append((i, w))
+    return violations
+
+
 def main() -> int:
     print(f"Validating skill at: {SKILL_DIR}")
     print()
@@ -398,7 +511,7 @@ def main() -> int:
     failed = False
 
     # ---- Check 1: required files ----
-    print("[1/8] Required files exist")
+    print("[1/9] Required files exist")
     missing = check_files_exist()
     if missing:
         print(f"  FAIL: {len(missing)} missing file(s):")
@@ -418,7 +531,7 @@ def main() -> int:
     print(f"\nExtracted {len(blocks)} positive example block(s) from examples.md")
 
     # ---- Check 2: bare field-name labels ----
-    print("\n[2/8] No bare field-name labels in positive examples")
+    print("\n[2/9] No bare field-name labels in positive examples")
     bare = check_bare_labels(blocks)
     if bare:
         print(f"  FAIL: {len(bare)} bare label(s):")
@@ -429,7 +542,7 @@ def main() -> int:
         print("  OK: zero bare field-name labels")
 
     # ---- Check 3: forbidden punctuation in second-level titles ----
-    print("\n[3/8] No forbidden punctuation in 二级标题 (before 冒号)")
+    print("\n[3/9] No forbidden punctuation in 二级标题 (before 冒号)")
     bad_punct = check_forbidden_punct(blocks)
     total_titles = sum(len(SHORT_JUDGMENT_RE.findall(b)) for b in blocks)
     if bad_punct:
@@ -441,7 +554,7 @@ def main() -> int:
         print(f"  OK: {total_titles} short judgments scanned, all clean")
 
     # ---- Check 4: overly generic short judgments (FAIL) ----
-    print("\n[4/8] No overly generic 二级标题 "
+    print("\n[4/9] No overly generic 二级标题 "
           "(工具名/平台名独立成标 或 情况/数据 等占位后缀)")
     generic = check_generic_titles(blocks)
     if generic:
@@ -454,7 +567,7 @@ def main() -> int:
         print("  OK: no overly generic short judgments detected")
 
     # ---- Check 5: forbidden process-narration phrases ----
-    print("\n[5/8] No process-narration phrases in positive examples")
+    print("\n[5/9] No process-narration phrases in positive examples")
     proc_violations = check_process_phrases(blocks)
     if proc_violations:
         print(f"  FAIL: {len(proc_violations)} process phrase leak(s):")
@@ -465,7 +578,7 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_PROCESS_PHRASES)} forbidden phrases scanned, zero hits")
 
     # ---- Check 6: placeholder count cap ----
-    print(f"\n[6/8] No more than {MAX_PLACEHOLDER_PER_BLOCK} occurrences of "
+    print(f"\n[6/9] No more than {MAX_PLACEHOLDER_PER_BLOCK} occurrences of "
           f"{PLACEHOLDER_TOKEN!r} per example output block")
     pl_violations = check_placeholder_count(blocks)
     if pl_violations:
@@ -478,7 +591,7 @@ def main() -> int:
         print(f"  OK: per-block counts {per_block}, all within cap")
 
     # ---- Check 7: 放大型 wording ----
-    print("\n[7/8] No 放大型 wording in positive examples "
+    print("\n[7/9] No 放大型 wording in positive examples "
           "(零门槛 / 大幅 / 明显提升 / 完全打通 / 全自动 / 闭环完成 / 显著 / 极大 / 巨大)")
     amp_violations = check_amplification_words(blocks)
     if amp_violations:
@@ -490,7 +603,7 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_AMP_WORDS)} forbidden amp words scanned, zero hits")
 
     # ---- Check 8: unnatural AI template phrases ----
-    print("\n[8/8] No unnatural AI template phrases in positive examples "
+    print("\n[8/9] No unnatural AI template phrases in positive examples "
           "(使用门槛下行 / 能力获得 / 数据不可达瓶颈 / 多项能力初步成型 / "
           "消除瓶颈 / 用户不再受操作系统差异困扰 / 多端能力获得 / 流程闭环已达成)")
     unnatural_violations = check_unnatural_phrases(blocks)
@@ -501,6 +614,19 @@ def main() -> int:
         failed = True
     else:
         print(f"  OK: {len(FORBIDDEN_UNNATURAL_PHRASES)} forbidden unnatural phrases scanned, zero hits")
+
+    # ---- Check 9: unsupported-inference phrases ----
+    print("\n[9/9] No unsupported-inference phrases in positive examples "
+          "(8 categories: UI / 采纳依赖 / 自动化 / 未来扩展 / 业务效果 / "
+          "用户感受 / 数据瓶颈 / 系统能力)")
+    inf_violations = check_inference_phrases(blocks)
+    if inf_violations:
+        print(f"  FAIL: {len(inf_violations)} inference phrase leak(s):")
+        for ex_idx, w in inf_violations:
+            print(f"    example {ex_idx}: {w!r}")
+        failed = True
+    else:
+        print(f"  OK: {len(FORBIDDEN_INFERENCE_PHRASES)} forbidden inference phrases scanned, zero hits")
 
     print()
     if failed:
