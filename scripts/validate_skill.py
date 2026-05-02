@@ -116,6 +116,47 @@ Checks:
      infrastructure tone to merchant / activity / customer-complaint
      monthly reports. See SKILL.md "运营月报子模式 > 技术化措辞
      禁忌" + style_rules.md §13.6.
+ 11. No operations status-upgrade phrases in operations-mode
+     examples. Three groups, all forbidden — they overstate the
+     actual work status by turning "feedback collected" into
+     "issue solved", "aligned with teams" into "rule optimized",
+     and "follow-up needed" into "plan landed". Listed in
+     SKILL.md "运营状态校准" + style_rules.md §13.10.
+
+     Group A — 5 specific failure-mode phrases:
+       - 活动规则优化      (alignment → optimization)
+       - 规则简化方向明确  (alignment → decided direction)
+       - 专项跟进流程      (follow-up → formal process)
+       - 资源分配方案落地  (concern → plan landing)
+       - 推进经营改善      (sediment → business improvement)
+
+     Group B — 6 hard-forbidden status-upgrade words from the
+     "状态升档禁忌（hard rule）" subsection:
+       - 已优化 / 已改善 / 已解决 / 已落地   (completion claims)
+       - 方向明确                              (decided direction)
+       - 形成闭环                              (closure formed)
+
+     Group C — 8 multi-word ❌ variants from the §13.10
+     "输入意图 → 校准措辞映射" table + examples.md mini-对照.
+     Group B substrings miss these because of inserted words
+     (e.g. `方向已经明确` ≠ `方向明确`) or different prefixes
+     (e.g. `规则完成优化` ≠ `已优化`):
+       - 反馈已闭环 / 高频反馈已闭环          (闭环 family)
+       - 规则完成优化                         (alignment → optimization)
+       - 方案完成落地                         (concern → landing)
+       - 方向已经明确                         (alignment → direction)
+       - 曝光资源完成配置                     (concern → configuration)
+       - 商户参与效果改善                     (partial signup → improvement)
+       - 商户问题完成解决                     (feedback → resolution)
+
+     Operations-mode examples are detected by the same
+     OPERATIONS_TITLE_KEYWORDS list as Check 10. Technical
+     examples are exempt — they may legitimately use words
+     like `落地` (e.g., `缓存与预聚合优先落地`) or `闭环`
+     (e.g., `修复闭环`) where the user input supports the
+     status claim. See test_cases.md 用例 19 PASS (f)/(g) for
+     the calibration eval and examples.md "运营状态校准
+     mini 对照" for the side-by-side ❌ / ✅ comparison.
 
 Exits 0 on success, 1 on failure. Python standard library only.
 
@@ -450,6 +491,79 @@ FORBIDDEN_TECH_LEAKAGE = [
     "流程闭环",   # use `处理到位` / `持续推进` / `阶段性完成`
 ]
 
+# Operations status-upgrade phrases — phrases that overstate the actual
+# status of operations work. Three groups, all forbidden in ops-mode
+# examples:
+#
+# Group A — 5 specific failure-mode phrases (user's explicit ban list).
+# Each turns a lower status into a higher one without user-input
+# support:
+#
+#   - 活动规则优化       : "对齐" upgraded to "优化"
+#   - 规则简化方向明确   : "对齐" upgraded to "decided direction"
+#   - 专项跟进流程       : "持续跟进" upgraded to "formal process"
+#   - 资源分配方案落地   : "诉求" upgraded to "plan landing"
+#   - 推进经营改善       : "反馈沉淀" upgraded to "business improvement"
+#
+# Group B — 6 hard-forbidden status-upgrade words declared in SKILL.md
+# "运营状态校准 > 状态升档禁忌（hard rule）" + style_rules.md §13.10.
+# These read as completion claims (`已 ...`, `... 明确`, `形成闭环`)
+# and are forbidden in ops-mode positive examples because gold-standard
+# outputs should never make completion claims absent input support:
+#
+#   - 已优化 / 已改善 / 已解决 / 已落地  : status-completion claims
+#   - 方向明确                            : decided-direction claim
+#   - 形成闭环                            : closure-formed claim
+#
+# Group C — 8 multi-word ❌ variants documented in the §13.10 "输入意图
+# → 校准措辞映射" table (SKILL.md / style_rules.md) and the examples.md
+# "运营状态校准 mini 对照" failure-mode column. These do NOT match Group
+# B substrings (e.g. `规则完成优化` lacks the `已` prefix; `方向已经明确`
+# inserts `已经` between `方向` and `明确` so the substring `方向明确`
+# does not hit). Each is enumerated verbatim from the mapping tables:
+#
+#   - 反馈已闭环          : `形成闭环` family with 已-prefix
+#   - 规则完成优化        : alignment overstated as completed optimization
+#   - 方案完成落地        : concern overstated as completed landing
+#   - 方向已经明确        : alignment overstated as decided direction
+#   - 曝光资源完成配置    : concern overstated as completed configuration
+#   - 商户参与效果改善    : partial signup overstated as effect improvement
+#   - 商户问题完成解决    : feedback overstated as completed resolution
+#   - 高频反馈已闭环      : feedback overstated as already closed loop
+#
+# All three groups scoped to operations-mode examples only (via
+# OPERATIONS_TITLE_KEYWORDS) because technical examples may legitimately
+# use words like `落地` (e.g. `缓存与预聚合优先落地` in example 3) or
+# `闭环` (e.g. `修复闭环` / `根因结论本周内闭环`) where the user input
+# supports the status claim. See SKILL.md "运营状态校准" +
+# style_rules.md §13.10 + examples.md "运营状态校准 mini 对照" +
+# test_cases.md 用例 19 PASS (f)/(g).
+FORBIDDEN_OPS_UPGRADE_PHRASES = [
+    # Group A: 5 specific failure-mode phrases
+    "活动规则优化",
+    "规则简化方向明确",
+    "专项跟进流程",
+    "资源分配方案落地",
+    "推进经营改善",
+    # Group B: 6 hard-forbidden status-upgrade words
+    "已优化",
+    "已改善",
+    "已解决",
+    "已落地",
+    "方向明确",
+    "形成闭环",
+    # Group C: 8 multi-word ❌ variants from the §13.10 mapping table
+    # and the examples.md mini-对照 failure-mode column
+    "反馈已闭环",
+    "规则完成优化",
+    "方案完成落地",
+    "方向已经明确",
+    "曝光资源完成配置",
+    "商户参与效果改善",
+    "商户问题完成解决",
+    "高频反馈已闭环",
+]
+
 # **<short_judgment>：**
 SHORT_JUDGMENT_RE = re.compile(r"\*\*([^*\n]+?)：\*\*")
 
@@ -678,6 +792,26 @@ def check_ops_tech_leakage(
     return violations
 
 
+def check_ops_upgrade_phrases(
+    blocks: list[str], titles: list[str]
+) -> list[tuple[int, str, str]]:
+    """For operations-mode examples (detected by title keyword), flag
+    status-upgrade phrases that overstate the actual work status — e.g.
+    aligning written as optimizing, follow-up written as landing.
+    Technical examples are exempt because they may legitimately use
+    words like `落地` where the input supports the status claim.
+
+    Returns (example_index, phrase, title)."""
+    violations: list[tuple[int, str, str]] = []
+    for i, (block, title) in enumerate(zip(blocks, titles), 1):
+        if not _is_operations_example(title):
+            continue
+        for phrase in FORBIDDEN_OPS_UPGRADE_PHRASES:
+            if phrase in block:
+                violations.append((i, phrase, title))
+    return violations
+
+
 def main() -> int:
     print(f"Validating skill at: {SKILL_DIR}")
     print()
@@ -685,7 +819,7 @@ def main() -> int:
     failed = False
 
     # ---- Check 1: required files ----
-    print("[1/10] Required files exist")
+    print("[1/11] Required files exist")
     missing = check_files_exist()
     if missing:
         print(f"  FAIL: {len(missing)} missing file(s):")
@@ -705,7 +839,7 @@ def main() -> int:
     print(f"\nExtracted {len(blocks)} positive example block(s) from examples.md")
 
     # ---- Check 2: bare field-name labels ----
-    print("\n[2/10] No bare field-name labels in positive examples")
+    print("\n[2/11] No bare field-name labels in positive examples")
     bare = check_bare_labels(blocks)
     if bare:
         print(f"  FAIL: {len(bare)} bare label(s):")
@@ -716,7 +850,7 @@ def main() -> int:
         print("  OK: zero bare field-name labels")
 
     # ---- Check 3: forbidden punctuation in second-level titles ----
-    print("\n[3/10] No forbidden punctuation in 二级标题 (before 冒号)")
+    print("\n[3/11] No forbidden punctuation in 二级标题 (before 冒号)")
     bad_punct = check_forbidden_punct(blocks)
     total_titles = sum(len(SHORT_JUDGMENT_RE.findall(b)) for b in blocks)
     if bad_punct:
@@ -728,7 +862,7 @@ def main() -> int:
         print(f"  OK: {total_titles} short judgments scanned, all clean")
 
     # ---- Check 4: overly generic short judgments (FAIL) ----
-    print("\n[4/10] No overly generic 二级标题 "
+    print("\n[4/11] No overly generic 二级标题 "
           "(工具名/平台名独立成标 或 情况/数据 等占位后缀)")
     generic = check_generic_titles(blocks)
     if generic:
@@ -741,7 +875,7 @@ def main() -> int:
         print("  OK: no overly generic short judgments detected")
 
     # ---- Check 5: forbidden process-narration phrases ----
-    print("\n[5/10] No process-narration phrases in positive examples")
+    print("\n[5/11] No process-narration phrases in positive examples")
     proc_violations = check_process_phrases(blocks)
     if proc_violations:
         print(f"  FAIL: {len(proc_violations)} process phrase leak(s):")
@@ -752,7 +886,7 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_PROCESS_PHRASES)} forbidden phrases scanned, zero hits")
 
     # ---- Check 6: placeholder count cap ----
-    print(f"\n[6/10] No more than {MAX_PLACEHOLDER_PER_BLOCK} occurrences of "
+    print(f"\n[6/11] No more than {MAX_PLACEHOLDER_PER_BLOCK} occurrences of "
           f"{PLACEHOLDER_TOKEN!r} per example output block")
     pl_violations = check_placeholder_count(blocks)
     if pl_violations:
@@ -765,7 +899,7 @@ def main() -> int:
         print(f"  OK: per-block counts {per_block}, all within cap")
 
     # ---- Check 7: 放大型 wording ----
-    print("\n[7/10] No 放大型 wording in positive examples "
+    print("\n[7/11] No 放大型 wording in positive examples "
           "(零门槛 / 大幅 / 明显提升 / 完全打通 / 全自动 / 闭环完成 / 显著 / 极大 / 巨大)")
     amp_violations = check_amplification_words(blocks)
     if amp_violations:
@@ -777,7 +911,7 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_AMP_WORDS)} forbidden amp words scanned, zero hits")
 
     # ---- Check 8: unnatural AI template phrases ----
-    print("\n[8/10] No unnatural AI template phrases in positive examples "
+    print("\n[8/11] No unnatural AI template phrases in positive examples "
           "(使用门槛下行 / 能力获得 / 数据不可达瓶颈 / 多项能力初步成型 / "
           "消除瓶颈 / 用户不再受操作系统差异困扰 / 多端能力获得 / 流程闭环已达成)")
     unnatural_violations = check_unnatural_phrases(blocks)
@@ -790,7 +924,7 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_UNNATURAL_PHRASES)} forbidden unnatural phrases scanned, zero hits")
 
     # ---- Check 9: unsupported-inference phrases ----
-    print("\n[9/10] No unsupported-inference phrases in positive examples "
+    print("\n[9/11] No unsupported-inference phrases in positive examples "
           "(9 categories: UI / 采纳依赖 / 自动化 / 未来扩展 / 业务效果 / "
           "用户感受 / 数据瓶颈 / 系统能力 / 运营场景虚构)")
     inf_violations = check_inference_phrases(blocks)
@@ -807,7 +941,7 @@ def main() -> int:
     ops_block_indices = [
         i for i, t in enumerate(titles, 1) if _is_operations_example(t)
     ]
-    print(f"\n[10/10] No tech-substrate leakage in operations-mode examples "
+    print(f"\n[10/11] No tech-substrate leakage in operations-mode examples "
           f"(数据底座 / 技术基建 / 系统能力 / 链路打通 / 模型能力 / 自动化闭环 / "
           f"数据连接 / 数据采集 / 接口对接 / 监控告警 / 调度任务 / 流程闭环)")
     print(f"        Operations-mode example indices detected: {ops_block_indices}")
@@ -820,6 +954,27 @@ def main() -> int:
     else:
         print(f"  OK: {len(FORBIDDEN_TECH_LEAKAGE)} tech-substrate phrases scanned across "
               f"{len(ops_block_indices)} ops example(s), zero hits")
+
+    # ---- Check 11: operations status-upgrade phrases ----
+    print(f"\n[11/11] No operations status-upgrade phrases in operations-mode "
+          f"examples")
+    print(f"        Group A (5 failure-mode phrases): 活动规则优化 / "
+          f"规则简化方向明确 / 专项跟进流程 / 资源分配方案落地 / 推进经营改善")
+    print(f"        Group B (6 hard-forbidden status words): 已优化 / 已改善 / "
+          f"已解决 / 已落地 / 方向明确 / 形成闭环")
+    print(f"        Group C (8 multi-word variants): 反馈已闭环 / 规则完成优化 / "
+          f"方案完成落地 / 方向已经明确 / 曝光资源完成配置 / 商户参与效果改善 / "
+          f"商户问题完成解决 / 高频反馈已闭环")
+    print(f"        Operations-mode example indices detected: {ops_block_indices}")
+    upgrade_violations = check_ops_upgrade_phrases(blocks, titles)
+    if upgrade_violations:
+        print(f"  FAIL: {len(upgrade_violations)} status-upgrade hit(s) in ops examples:")
+        for ex_idx, phrase, title in upgrade_violations:
+            print(f"    example {ex_idx} ({title[:40]}...): {phrase!r}")
+        failed = True
+    else:
+        print(f"  OK: {len(FORBIDDEN_OPS_UPGRADE_PHRASES)} status-upgrade phrases "
+              f"scanned across {len(ops_block_indices)} ops example(s), zero hits")
 
     print()
     if failed:
