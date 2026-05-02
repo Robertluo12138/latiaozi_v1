@@ -158,6 +158,39 @@ Checks:
      the calibration eval and examples.md "运营状态校准
      mini 对照" for the side-by-side ❌ / ✅ comparison.
 
+ 12. No silent-routing process phrases in positive examples.
+     The skill must not reveal the routing decision in its
+     output — selecting the right mode is internal to the
+     skill. Listed in SKILL.md "静默路由 > 静默执行铁律" +
+     style_rules.md §14.5. Five phrases:
+       - 我判断 / 我将使用                     (decision narration)
+       - 模式判断 / 路由结果                   (routing narration)
+       - 以下是                                (rewrite preamble)
+     Applies to ALL positive examples (technical and ops).
+ 13. Monthly-submission examples meet their per-sub-mode spec
+     floor:
+       - Data / mixed monthly_submission → ≥ 900 chinese chars
+         (matches the spec floor `monthly report submission:
+         900 to 1500 Chinese characters`)
+       - Ops monthly_submission           → ≥ 800 chinese chars
+         (matches the spec floor `operations monthly report:
+         800 to 1400 Chinese characters`)
+     Detection: ops monthly = title contains an
+     OPERATIONS_TITLE_KEYWORD; data/mixed = everything else
+     (catches pure-data and mixed cases that should follow the
+     900 floor). Monthly_submission examples are detected by
+     the `**本月工作总结**` mast on the first non-empty line —
+     older "monthly_compact" half-page examples (monthly title
+     without the mast) are skipped. Catches both the legacy
+     global 800-cap re-imposition AND data-monthly examples
+     drifting below their own 900 contract. See SKILL.md
+     "输出长度（mode-specific）" + style_rules.md §7.1.
+ 14. Compact-mode examples remain compact (≤ 800 chinese
+     characters). The skill must not let monthly templates
+     bleed into compact-mode examples. Compact = NOT monthly
+     AND NOT (title contains 复盘 / 周报 / 周进展 / 项目总结).
+     See SKILL.md 紧凑半页版 + style_rules.md §7.1.
+
 Exits 0 on success, 1 on failure. Python standard library only.
 
 Usage:
@@ -564,6 +597,43 @@ FORBIDDEN_OPS_UPGRADE_PHRASES = [
     "高频反馈已闭环",
 ]
 
+# Silent-routing process phrases — the skill selects modes silently
+# and never narrates the decision in its output. Listed in SKILL.md
+# "静默路由 > 静默执行铁律" + style_rules.md §14.5. Five core
+# phrases — additional variants like "进入 X 模式" are caught by
+# the substring `模式判断` / `路由结果` family in normal practice;
+# the explicit list keeps the validator focused on the user-spec
+# wording.
+FORBIDDEN_ROUTING_PHRASES = [
+    "我判断",
+    "我将使用",
+    "模式判断",
+    "路由结果",
+    "以下是",
+]
+
+# Mode-by-title detection. Used by Check 13 / Check 14. Title-keyword
+# matching is intentionally lightweight: any kw appearing as a substring
+# of the example title classifies the example as that mode.
+MONTHLY_TITLE_KEYWORDS = ["月报", "工作总结", "月度总结", "提交"]
+RECAP_TITLE_KEYWORDS = ["复盘", "项目总结", "阶段回顾"]
+WEEKLY_TITLE_KEYWORDS = ["周报", "周进展", "本周"]
+
+# Length bounds (chinese characters) per spec. Monthly lower bound is
+# differentiated by sub-mode:
+#   - Data / mixed monthly_submission → 900 (matches the spec floor
+#     `monthly report submission: 900 to 1500 Chinese characters`)
+#   - Ops monthly_submission           → 800 (matches the spec floor
+#     `operations monthly report: 800 to 1400 Chinese characters`)
+# Detection: an example is treated as "ops monthly" iff its title
+# contains an OPERATIONS_TITLE_KEYWORD; everything else is "data
+# monthly" (catches pure-data and mixed cases).
+# Compact upper bound is 800 — compact examples must stay compact
+# even when the input is multi-workstream.
+MONTHLY_DATA_MIN_CHARS = 900
+MONTHLY_OPS_MIN_CHARS = 800
+COMPACT_MAX_CHARS = 800
+
 # **<short_judgment>：**
 SHORT_JUDGMENT_RE = re.compile(r"\*\*([^*\n]+?)：\*\*")
 
@@ -812,6 +882,118 @@ def check_ops_upgrade_phrases(
     return violations
 
 
+def check_routing_phrases(blocks: list[str]) -> list[tuple[int, str]]:
+    """Flag any positive example block that leaks silent-routing
+    process phrases (`我判断` / `我将使用` / `模式判断` / `路由结果` /
+    `以下是`). The skill must select modes silently — these phrases
+    narrate the routing decision and must never appear in output.
+
+    Returns (example_index, phrase)."""
+    violations: list[tuple[int, str]] = []
+    for i, block in enumerate(blocks, 1):
+        for phrase in FORBIDDEN_ROUTING_PHRASES:
+            if phrase in block:
+                violations.append((i, phrase))
+    return violations
+
+
+MONTHLY_SUBMISSION_MAST = "**本月工作总结**"
+
+
+def _classify_mode(title: str, block: str = "") -> str:
+    """Classify an example's mode.
+
+    Two-stage classification:
+      1. By title keyword (monthly / recap / weekly / compact).
+      2. Within "monthly" titles, distinguish:
+         - "monthly_submission" — the first non-empty line is the
+           `**本月工作总结**` mast (the post-§12 submission style).
+           Must measure ≥ MONTHLY_MIN_CHARS.
+         - "monthly_compact" — uses just an 加粗总论点 (the older
+           pre-§12 compact-monthly half-page format). Skipped from
+           Check 13 / 14 because the format intentionally compresses.
+
+    Order matters: monthly trumps recap/weekly because real-world
+    titles like 'X月报复盘' should be treated as monthly. Compact is
+    the residual category."""
+    if any(kw in title for kw in MONTHLY_TITLE_KEYWORDS):
+        first_line = ""
+        for line in block.splitlines():
+            stripped = line.strip()
+            if stripped:
+                first_line = stripped
+                break
+        if first_line == MONTHLY_SUBMISSION_MAST:
+            return "monthly_submission"
+        return "monthly_compact"
+    if any(kw in title for kw in RECAP_TITLE_KEYWORDS):
+        return "recap"
+    if any(kw in title for kw in WEEKLY_TITLE_KEYWORDS):
+        return "weekly"
+    return "compact"
+
+
+def _monthly_floor(title: str) -> int:
+    """Return the chinese-char floor for a monthly_submission example.
+
+    Operations monthlies (title contains an ops keyword) use 800;
+    data / mixed monthlies use the 900 spec floor."""
+    if _is_operations_example(title):
+        return MONTHLY_OPS_MIN_CHARS
+    return MONTHLY_DATA_MIN_CHARS
+
+
+def check_monthly_min_length(
+    blocks: list[str], titles: list[str]
+) -> list[tuple[int, int, str, int]]:
+    """For monthly_submission examples (title contains a monthly
+    keyword AND the block starts with the `**本月工作总结**` mast),
+    verify the positive block measures at least the per-sub-mode
+    floor:
+      - Data / mixed monthly  → ≥ MONTHLY_DATA_MIN_CHARS (900)
+      - Ops monthly           → ≥ MONTHLY_OPS_MIN_CHARS (800)
+
+    Catches both failure modes:
+      1. Legacy global 800-char cap silently re-imposed on monthly
+         submission examples.
+      2. Data monthly examples violating their own 900-char spec
+         floor (a mismatch the 800 cross-mode floor would miss).
+
+    Older "monthly_compact" examples (monthly title without the mast)
+    are skipped — their compressed format predates the §12 submission
+    mode and is intentionally short.
+
+    Returns (example_index, char_count, title, applicable_floor)."""
+    violations: list[tuple[int, int, str, int]] = []
+    for i, (block, title) in enumerate(zip(blocks, titles), 1):
+        if _classify_mode(title, block) != "monthly_submission":
+            continue
+        n = count_chinese_chars(block)
+        floor = _monthly_floor(title)
+        if n < floor:
+            violations.append((i, n, title, floor))
+    return violations
+
+
+def check_compact_max_length(
+    blocks: list[str], titles: list[str]
+) -> list[tuple[int, int, str]]:
+    """For compact-mode examples (NOT monthly / recap / weekly), verify
+    the positive block measures at most COMPACT_MAX_CHARS chinese
+    characters. Catches the failure mode where monthly templates bleed
+    into compact-mode examples.
+
+    Returns (example_index, char_count, title)."""
+    violations: list[tuple[int, int, str]] = []
+    for i, (block, title) in enumerate(zip(blocks, titles), 1):
+        if _classify_mode(title, block) != "compact":
+            continue
+        n = count_chinese_chars(block)
+        if n > COMPACT_MAX_CHARS:
+            violations.append((i, n, title))
+    return violations
+
+
 def main() -> int:
     print(f"Validating skill at: {SKILL_DIR}")
     print()
@@ -819,7 +1001,7 @@ def main() -> int:
     failed = False
 
     # ---- Check 1: required files ----
-    print("[1/11] Required files exist")
+    print("[1/14] Required files exist")
     missing = check_files_exist()
     if missing:
         print(f"  FAIL: {len(missing)} missing file(s):")
@@ -839,7 +1021,7 @@ def main() -> int:
     print(f"\nExtracted {len(blocks)} positive example block(s) from examples.md")
 
     # ---- Check 2: bare field-name labels ----
-    print("\n[2/11] No bare field-name labels in positive examples")
+    print("\n[2/14] No bare field-name labels in positive examples")
     bare = check_bare_labels(blocks)
     if bare:
         print(f"  FAIL: {len(bare)} bare label(s):")
@@ -850,7 +1032,7 @@ def main() -> int:
         print("  OK: zero bare field-name labels")
 
     # ---- Check 3: forbidden punctuation in second-level titles ----
-    print("\n[3/11] No forbidden punctuation in 二级标题 (before 冒号)")
+    print("\n[3/14] No forbidden punctuation in 二级标题 (before 冒号)")
     bad_punct = check_forbidden_punct(blocks)
     total_titles = sum(len(SHORT_JUDGMENT_RE.findall(b)) for b in blocks)
     if bad_punct:
@@ -862,7 +1044,7 @@ def main() -> int:
         print(f"  OK: {total_titles} short judgments scanned, all clean")
 
     # ---- Check 4: overly generic short judgments (FAIL) ----
-    print("\n[4/11] No overly generic 二级标题 "
+    print("\n[4/14] No overly generic 二级标题 "
           "(工具名/平台名独立成标 或 情况/数据 等占位后缀)")
     generic = check_generic_titles(blocks)
     if generic:
@@ -875,7 +1057,7 @@ def main() -> int:
         print("  OK: no overly generic short judgments detected")
 
     # ---- Check 5: forbidden process-narration phrases ----
-    print("\n[5/11] No process-narration phrases in positive examples")
+    print("\n[5/14] No process-narration phrases in positive examples")
     proc_violations = check_process_phrases(blocks)
     if proc_violations:
         print(f"  FAIL: {len(proc_violations)} process phrase leak(s):")
@@ -886,7 +1068,7 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_PROCESS_PHRASES)} forbidden phrases scanned, zero hits")
 
     # ---- Check 6: placeholder count cap ----
-    print(f"\n[6/11] No more than {MAX_PLACEHOLDER_PER_BLOCK} occurrences of "
+    print(f"\n[6/14] No more than {MAX_PLACEHOLDER_PER_BLOCK} occurrences of "
           f"{PLACEHOLDER_TOKEN!r} per example output block")
     pl_violations = check_placeholder_count(blocks)
     if pl_violations:
@@ -899,7 +1081,7 @@ def main() -> int:
         print(f"  OK: per-block counts {per_block}, all within cap")
 
     # ---- Check 7: 放大型 wording ----
-    print("\n[7/11] No 放大型 wording in positive examples "
+    print("\n[7/14] No 放大型 wording in positive examples "
           "(零门槛 / 大幅 / 明显提升 / 完全打通 / 全自动 / 闭环完成 / 显著 / 极大 / 巨大)")
     amp_violations = check_amplification_words(blocks)
     if amp_violations:
@@ -911,7 +1093,7 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_AMP_WORDS)} forbidden amp words scanned, zero hits")
 
     # ---- Check 8: unnatural AI template phrases ----
-    print("\n[8/11] No unnatural AI template phrases in positive examples "
+    print("\n[8/14] No unnatural AI template phrases in positive examples "
           "(使用门槛下行 / 能力获得 / 数据不可达瓶颈 / 多项能力初步成型 / "
           "消除瓶颈 / 用户不再受操作系统差异困扰 / 多端能力获得 / 流程闭环已达成)")
     unnatural_violations = check_unnatural_phrases(blocks)
@@ -924,7 +1106,7 @@ def main() -> int:
         print(f"  OK: {len(FORBIDDEN_UNNATURAL_PHRASES)} forbidden unnatural phrases scanned, zero hits")
 
     # ---- Check 9: unsupported-inference phrases ----
-    print("\n[9/11] No unsupported-inference phrases in positive examples "
+    print("\n[9/14] No unsupported-inference phrases in positive examples "
           "(9 categories: UI / 采纳依赖 / 自动化 / 未来扩展 / 业务效果 / "
           "用户感受 / 数据瓶颈 / 系统能力 / 运营场景虚构)")
     inf_violations = check_inference_phrases(blocks)
@@ -941,7 +1123,7 @@ def main() -> int:
     ops_block_indices = [
         i for i, t in enumerate(titles, 1) if _is_operations_example(t)
     ]
-    print(f"\n[10/11] No tech-substrate leakage in operations-mode examples "
+    print(f"\n[10/14] No tech-substrate leakage in operations-mode examples "
           f"(数据底座 / 技术基建 / 系统能力 / 链路打通 / 模型能力 / 自动化闭环 / "
           f"数据连接 / 数据采集 / 接口对接 / 监控告警 / 调度任务 / 流程闭环)")
     print(f"        Operations-mode example indices detected: {ops_block_indices}")
@@ -956,7 +1138,7 @@ def main() -> int:
               f"{len(ops_block_indices)} ops example(s), zero hits")
 
     # ---- Check 11: operations status-upgrade phrases ----
-    print(f"\n[11/11] No operations status-upgrade phrases in operations-mode "
+    print(f"\n[11/14] No operations status-upgrade phrases in operations-mode "
           f"examples")
     print(f"        Group A (5 failure-mode phrases): 活动规则优化 / "
           f"规则简化方向明确 / 专项跟进流程 / 资源分配方案落地 / 推进经营改善")
@@ -975,6 +1157,76 @@ def main() -> int:
     else:
         print(f"  OK: {len(FORBIDDEN_OPS_UPGRADE_PHRASES)} status-upgrade phrases "
               f"scanned across {len(ops_block_indices)} ops example(s), zero hits")
+
+    # ---- Check 12: silent-routing process phrases ----
+    print(f"\n[12/14] No silent-routing process phrases in positive examples "
+          f"(我判断 / 我将使用 / 模式判断 / 路由结果 / 以下是)")
+    routing_violations = check_routing_phrases(blocks)
+    if routing_violations:
+        print(f"  FAIL: {len(routing_violations)} routing-phrase leak(s):")
+        for ex_idx, phrase in routing_violations:
+            print(f"    example {ex_idx}: {phrase!r}")
+        failed = True
+    else:
+        print(f"  OK: {len(FORBIDDEN_ROUTING_PHRASES)} forbidden routing phrases "
+              f"scanned, zero hits")
+
+    # ---- Check 13: monthly_submission examples meet sub-mode spec floor ----
+    print(f"\n[13/14] Monthly-submission examples meet per-sub-mode floor "
+          f"(data/mixed ≥ {MONTHLY_DATA_MIN_CHARS} / ops ≥ {MONTHLY_OPS_MIN_CHARS} "
+          f"chinese chars)")
+    monthly_sub_indices = [
+        i for i, t in enumerate(titles, 1)
+        if _classify_mode(t, blocks[i - 1]) == "monthly_submission"
+    ]
+    monthly_compact_indices = [
+        i for i, t in enumerate(titles, 1)
+        if _classify_mode(t, blocks[i - 1]) == "monthly_compact"
+    ]
+    print(f"        Monthly-submission example indices detected: {monthly_sub_indices}")
+    print(f"        (Monthly-compact half-page indices skipped: {monthly_compact_indices})")
+    monthly_violations = check_monthly_min_length(blocks, titles)
+    if monthly_violations:
+        print(f"  FAIL: {len(monthly_violations)} monthly-submission example(s) "
+              f"under sub-mode floor:")
+        for ex_idx, n, title, floor in monthly_violations:
+            sub = "ops" if floor == MONTHLY_OPS_MIN_CHARS else "data/mixed"
+            print(f"    example {ex_idx} ({title[:40]}...): {n} chars "
+                  f"(needs ≥ {floor} for {sub} monthly)")
+        failed = True
+    else:
+        per_block_chars = [
+            (i, count_chinese_chars(blocks[i - 1]),
+             "ops" if _is_operations_example(titles[i - 1]) else "data/mixed",
+             _monthly_floor(titles[i - 1]))
+            for i in monthly_sub_indices
+        ]
+        print(f"  OK: {len(monthly_sub_indices)} monthly-submission example(s) "
+              f"scanned, all meet sub-mode floor; per-example "
+              f"(idx, chars, sub-mode, floor): {per_block_chars}")
+
+    # ---- Check 14: compact examples remain compact ≤ 800 ----
+    print(f"\n[14/14] Compact-mode examples ≤ {COMPACT_MAX_CHARS} chinese chars "
+          f"(monthly templates must not bleed into compact-mode examples)")
+    compact_indices = [
+        i for i, t in enumerate(titles, 1)
+        if _classify_mode(t, blocks[i - 1]) == "compact"
+    ]
+    print(f"        Compact-mode example indices detected: {compact_indices}")
+    compact_violations = check_compact_max_length(blocks, titles)
+    if compact_violations:
+        print(f"  FAIL: {len(compact_violations)} compact example(s) over "
+              f"{COMPACT_MAX_CHARS} chars:")
+        for ex_idx, n, title in compact_violations:
+            print(f"    example {ex_idx} ({title[:40]}...): {n} chinese chars")
+        failed = True
+    else:
+        per_block_chars = [
+            (i, count_chinese_chars(blocks[i - 1]))
+            for i in compact_indices
+        ]
+        print(f"  OK: {len(compact_indices)} compact example(s) scanned, all "
+              f"≤ {COMPACT_MAX_CHARS} chars; per-example chars: {per_block_chars}")
 
     print()
     if failed:
